@@ -1,4 +1,4 @@
-//Vector editor for PICO-8 by David Ward Andersen
+//Vector editor for PICO-8 by David Andersen
 //https://github.com/davidwardandersen
 
 var palette=[
@@ -8,7 +8,6 @@ var palette=[
 	[41,173,255,255],[131,118,156,255],[255,119,168,255],[255,204,170,255]
 ];
 
-var testString='d230c339dd50c4p22209816b0a1c938acg4d9b609a6db0dcc9p7631b35ab459cb2bccp77a59adc9ad2b1a8b1p003f9f4b9f4aae42b1g2c9d2cb034af359ep7745a448a74aa1g2fa431a833a4pc1239227ad20bc5dc064903e80gc1ae459dd79d51acgb4ae329ea79d29aepx1b2b336b7bf34p7654965f80fd816f93pe23e8f2da191ab9e92138e938326873e805a87699fe1b24c9fpe252032988b4a6pxdc9b8c330d0b7c930p';
 var refImage;
 var gui={};
 var polys=[];
@@ -685,20 +684,20 @@ Poly.prototype.deleteVert=function(){
 	}
 }
 
-Poly.prototype.subdivide=function(verts,subdivisions){
+Poly.prototype.subdivide=function(verts,subdivisions,splitColor){
 	var newVerts=[];
 	for(var i=0;i<verts.length;i++){
 		newVerts[i]=[];
 		for(var k=1;k<verts[i].length;k++){
 			var a=verts[i][k-1];
 			var b=verts[i][k];
-		  var result=subdivide(a,b);
+		  var result=subdivide(a,b,splitColor);
       newVerts[i].push(result[0],result[1]);
     }
     newVerts[i].push(newVerts[i][0]);
   }
   if(subdivisions>1){
-    newVerts=this.subdivide(newVerts,subdivisions-1);
+    newVerts=this.subdivide(newVerts,subdivisions-1,true);
   }
   return newVerts;
 }
@@ -759,23 +758,18 @@ Poly.prototype.line=function(verts){
 			var b=verts[i][k];
 			var points=bresenham(a,b);
 			var color=a.color?this.lineColor:this.fillColor;
-			// var colorA=a.color?this.lineColor:this.fillColor;
 			// var colorB=b.color?this.lineColor:this.fillColor;
-			// if(!a.color){
-			// 	color=this.fillColor;
-			// }
-			// var half=points.length/2;
-			// half-=half%2;
+			// var half=ceil(points.length/2);
 			if(color<16){
 				this.canvas.fill(palette[color]);
-				for(var p=0;p<points.length;p+=2){
-					this.canvas.rect(points[p],points[p+1],1,1);
+				for(var p=0;p<points.length;p++){
+					this.canvas.rect(points[p].x,points[p].y,1,1);
 				}
 			}
 			// if(colorB<16){
 			// 	this.canvas.fill(palette[colorB]);
-			// 	for(var p=half;p<points.length;p+=2){
-			// 		this.canvas.rect(points[p],points[p+1],1,1);
+			// 	for(var p=half;p<points.length;p++){
+			// 		this.canvas.rect(points[p].x,points[p].y,1,1);
 			// 	}
 			// }
 		}
@@ -842,7 +836,7 @@ Poly.prototype.draw=function(){
 			this.verts[i].push(this.verts[i][0]);
 		}
 		//group.push(group[0]);
-		var verts=this.subdivide(this.verts,2);
+		var verts=this.subdivide(this.verts,2,false);
 		this.canvas.clear();
 		if(this.fillColor<16){
 			this.fill(verts);
@@ -957,7 +951,7 @@ function bresenham(a,b){
 	    var y=m*slope;
 	    y=round(y*ySign)+a.y;
 	    var x=m*xSign+a.x;
-			points.push(x,y);
+			points.push({x:x,y:y});
 		}
 	}else{
 	  var slope=deltaX/deltaY;
@@ -965,13 +959,13 @@ function bresenham(a,b){
 	    var x=m*slope;
 	    x=round(x*xSign)+a.x;
 	    var y=m*ySign+a.y;
-			points.push(x,y);
+			points.push({x:x,y:y});
 		}
 	}
 	return points;
 }
 
-function subdivide(a,b){
+function subdivide(a,b,splitColor){
 	var result=[];
   if(!a.pin){
     var x=round(a.x*0.75+b.x*0.25);
@@ -983,7 +977,8 @@ function subdivide(a,b){
   if(!b.pin){
     var x=round(a.x*0.25+b.x*0.75);
     var y=round(a.y*0.25+b.y*0.75);
-		result.push(new Vert(x,y,false,b.color));
+		var color=splitColor?b.color:a.color;
+		result.push(new Vert(x,y,false,color));
   }else{
   	result.push(b);
   }
