@@ -54,8 +54,14 @@ function setupGui(){
 	gui.line=new GuiColor(1,19,16,1,16,1,gui.block);
 	gui.layer=new GuiLayer(18,1,1,17,1,17,gui.block);
 	gui.vertGroup=new GuiVertGroup(19,1,1,16,1,16,gui.block);
-	gui.vertMenu=false;
+	//gui.vertMenu=false;
 	gui.vertDrag=false;
+	gui.vertClick=false;
+	gui.midpointClick=false;
+	gui.canvasClick=false;
+	// gui.vertBoxDrag=false;
+	gui.vertBox=false;
+	gui.vertSelection=false;
 	gui.layerDrag=false;
 	gui.showEdges=true;
 	packInput=createInput('');
@@ -64,28 +70,58 @@ function setupGui(){
 	unpackInput=createInput('');
 	unpackInput.position(gui.block*7,gui.block*21+gui.block*0.25);
 	unpackInput.size(gui.block*10,gui.block*0.5);
-	// loadButton=createButton('load');
-	// loadButton.position(gui.block*18,gui.block*21+gui.block*0.25);
-	// loadButton.size(gui.block*2,gui.block*0.5);
-	// loadButton.input();
+
 	gui.click=function(){
-		if(gui.vertMenu){
-			gui.vertMenu.click();
-		}else{
-			gui.canvas.click();
-			gui.fill.click('fill');
-			gui.line.click('line');
-			gui.layer.click();
-			gui.vertGroup.click();
-		}
+		// if(gui.vertMenu){
+		// 	gui.vertMenu.click();
+		// }else{
+		gui.canvas.click();
+		gui.fill.click('fill');
+		gui.line.click('line');
+		gui.layer.click();
+		gui.vertGroup.click();
+		// }
 	}
+
 	gui.release=function(){
+		if(gui.canvasClick){
+			var cell=gui.canvas.canvasToCell(mouseX,mouseY);
+			polys[gui.layer.selected].addVertex(cell.x,cell.y);
+			gui.canvasClick=false;
+		}
+		if(gui.vertClick){
+			gui.vertClick.pin=!gui.vertClick.pin;
+			gui.vertClick=false;
+		}
+		if(gui.midpointClick){
+			gui.midpointClick.vert.color=!gui.midpointClick.vert.color;
+			gui.midpointClick=false;
+		}
 		if(gui.vertDrag){
 			gui.vertDrag=false;
-		}else if(gui.layerDrag!==false){
+		}
+		if(gui.vertBox){
+			// gui.canvas.selected=polys[gui.layer.selected].select(gui.canvas.select(gui.vertBoxDrag));
+			if(!gui.vertBox.release()){
+				polys[gui.layer.selected].deselectVerts();
+			}
+			if(keyIsDown(SHIFT)){
+				var verts=polys[gui.layer.selected].verts[gui.vertGroup.selected];
+				for(var i=0;i<verts.length;i++){
+					if(verts[i].selected){
+						verts[i].delete=true;
+					}
+				}
+				// gui.canvas.selected=false;
+			}
+			gui.vertBox=false;
+		}
+		if(gui.layerDrag!==false){ // Have to do it this way because layer 0 registers as false
 			gui.layer.release();
+			gui.layerDrag=false;
 		}
 	}
+
 	gui.draw=function(){
 		gui.fill.draw();
 		gui.line.draw();
@@ -119,6 +155,7 @@ function setupGui(){
 
 function GuiCanvas(x,y,width,height,columns,rows,block){
 	Grid.call(this,x,y,width,height,columns,rows,block);
+	this.selected=false;
 }
 
 GuiCanvas.prototype=Object.create(Grid.prototype);
@@ -126,12 +163,31 @@ GuiCanvas.prototype.constructor=GuiCanvas;
 
 GuiCanvas.prototype.click=function(){
 	if(this.contains(mouseX,mouseY)){
-		polys[gui.layer.selected].click();
+		if (!polys[gui.layer.selected].click()){
+			gui.canvasClick={x:mouseX,y:mouseY};
+		}
 	}
 }
 
+// GuiCanvas.prototype.select=function(point){
+// 	var x=constrain(mouseX,this.x,this.x+this.width);
+// 	var y=constrain(mouseY,this.y,this.y+this.height);
+// 	var x1=min(point.x,x);
+// 	var y1=min(point.y,y);
+// 	var x2=max(point.x,x);
+// 	var y2=max(point.y,y);
+// 	return new Grid(x1,y1,x2-x1,y2-y1);
+// }
+
 GuiCanvas.prototype.draw=function(){
 	push();
+	if(gui.canvasClick){
+		var point=gui.canvasClick;
+		if(magnitude(point.x,point.y,mouseX,mouseY)>this.cellWidth*2){
+			gui.vertBox=new VertBox(point.x,point.y);
+			gui.canvasClick=false;
+		}
+	}
 	if(refImage){
 		noSmooth();
 		image(refImage,this.x,this.y,this.width,this.height);
@@ -147,6 +203,16 @@ GuiCanvas.prototype.draw=function(){
 		image(polys[i].canvas,this.x,this.y,this.width,this.height);
 	}
 	polys[gui.layer.selected].draw();
+	if(gui.vertBox){
+		gui.vertBox.draw();
+	}
+	// if(gui.vertBoxDrag){
+	// 	fill(255,255,255,127);
+	// 	stroke(0);
+	// 	strokeWeight(3);
+	// 	var select=this.select(gui.vertBoxDrag);
+	// 	rect(select.x,select.y,select.width,select.height);
+	// }
 	pop();
 }
 
@@ -233,7 +299,6 @@ GuiLayer.prototype.release=function(){
 	}else if(button===16){
 		polys[this.selected]=new Poly();
 	}
-	gui.layerDrag=false;
 }
 
 GuiLayer.prototype.draw=function(){
@@ -318,6 +383,79 @@ GuiVertGroup.prototype.draw=function(){
 			rect(point.x+offset,point.y+offset,size,size);
 		}
 	}
+	pop();
+}
+
+// 888     888 8888888888 8888888b. 88888888888      888888b.    .d88888b. Y88b   d88P
+// 888     888 888        888   Y88b    888          888  "88b  d88P" "Y88b Y88b d88P
+// 888     888 888        888    888    888          888  .88P  888     888  Y88o88P
+// Y88b   d88P 8888888    888   d88P    888          8888888K.  888     888   Y888P
+//  Y88b d88P  888        8888888P"     888          888  "Y88b 888     888   d888b
+//   Y88o88P   888        888 T88b      888          888    888 888     888  d88888b
+//    Y888P    888        888  T88b     888          888   d88P Y88b. .d88P d88P Y88b
+//     Y8P     8888888888 888   T88b    888          8888888P"   "Y88888P" d88P   Y88b
+
+function VertBox(x,y){
+	Grid.call(this,x,y,0,0);
+	// var point=gui.canvas.canvasToCell(x,y);
+	this.xClick=x;
+	this.yClick=y;
+	// this.x1=point.x;
+	// this.y1=point.y;
+	// this.x2=point.x;
+	// this.y2=point.y;
+	// this.verts=[];
+	// this.drag=true;
+}
+
+VertBox.prototype=Object.create(Grid.prototype);
+VertBox.prototype.constructor=VertBox;
+
+VertBox.prototype.drag=function(){
+	var mx=constrain(mouseX,gui.canvas.x,gui.canvas.x+gui.canvas.width);
+	var my=constrain(mouseY,gui.canvas.y,gui.canvas.y+gui.canvas.height);
+	this.x=min(this.xClick,mx);
+	this.y=min(this.yClick,my);
+	this.width=abs(mx-this.xClick);
+	this.height=abs(my-this.yClick);
+}
+
+// VertBox.prototype.getHitbox=function(){
+// 	var point1=gui.canvas.cellToCanvas(this.x1,this.y1);
+// 	var point2=gui.canvas.cellToCanvas(this.x2,this.y2);
+// 	point2.x+=gui.canvas.cellWidth;
+// 	point2.y+=gui.canvas.cellHeight;
+// 	return new Grid(point1.x,point1.y,point2.x-point1.x,point2.y-point1.y);
+// }
+
+VertBox.prototype.release=function(){
+	var vertsWereSelected=false;
+	var vertSelection=[];
+	var verts=polys[gui.layer.selected].verts[gui.vertGroup.selected];
+	for(var i=0;i<verts.length;i++){
+		var hitbox=verts[i].getHitbox();
+		var x=hitbox.x+hitbox.width*0.5;
+		var y=hitbox.y+hitbox.height*0.5;
+		if(this.contains(x,y)){
+			vertSelection.push(verts[i]);
+			verts[i].selected=true;
+			vertsWereSelected=true;
+		}
+	}
+	return vertsWereSelected;
+}
+
+VertBox.prototype.draw=function(){
+	this.drag();
+	push();
+	// if(gui.vertBoxDrag){
+	// 	this.drag();
+	// }
+	// var hitbox=this.getHitbox()
+	fill(255,255,255,127);
+	stroke(0);
+	strokeWeight(3);
+	rect(this.x,this.y,this.width,this.height);
 	pop();
 }
 
@@ -459,6 +597,16 @@ Grid.prototype.indexToCanvas=function(index){
 	return this.cellToCanvas(cell.x,cell.y);
 }
 
+// Grid.prototype.rectangle=function(strokeColor,fillColor,x1,y1,x2,y2){
+// 	push();
+// 	var topLeft=this.cellToCanvas(x1,y1);
+// 	var bottomRight=this.cellToCanvas(x2+this.cellWidth,y2+this.cellHeight);
+// 	strokeColor?stroke(strokeColor):noStroke();
+// 	fillColor?fill(fillColor):noFill();
+// 	rect(topLeft.x,topLeft.y,bottomRight.x-topLeft.x,bottomRight.y-topLeft.y);
+// 	pop();
+// }
+
 // 888     888 8888888888 8888888b. 88888888888
 // 888     888 888        888   Y88b    888
 // 888     888 888        888    888    888
@@ -474,12 +622,18 @@ function Vert(x,y,pin=false,color=true){
 	this.pin=pin;
 	this.color=color;
 	this.delete=false;
+	this.selected=false;
 }
 
 Vert.prototype.click=function(){
 	var hitbox=this.getHitbox();
 	if(hitbox.contains(mouseX,mouseY)){
-		gui.vertMenu=new VertMenu(this);
+		// gui.vertMenu=new VertMenu(this);
+		if(keyIsDown(SHIFT)){
+			this.delete=true;
+		}else{
+			gui.vertClick=this;
+		}
 		return true;
 	}else{
 		return false;
@@ -536,8 +690,8 @@ Vert.prototype.draw=function(){
 	var x=hitbox.x+hitbox.width*0.5;
 	var y=hitbox.y+hitbox.height*0.5;
 	fill(255);
-	if(!this.color){
-		fill(palette[8]);
+	if(this.selected){
+		fill(palette[12]);
 	}
 	if(this.pin){
 		rect(x,y,hitbox.width,hitbox.height);
@@ -569,6 +723,7 @@ function Midpoint(a,b,index){
 	this.x=round(a.x*0.5+b.x*0.5);
 	this.y=round(a.y*0.5+b.y*0.5);
 	this.index=index;
+	this.vert=a;
 }
 
 Midpoint.prototype.getHitbox=function(){
@@ -578,6 +733,15 @@ Midpoint.prototype.getHitbox=function(){
 }
 
 Midpoint.prototype.click=function(verts){
+	var hitbox=this.getHitbox();
+	if(hitbox.contains(mouseX,mouseY)){
+		// gui.vertMenu=new VertMenu(this);
+		gui.midpointClick=this;
+		return true;
+	}else{
+		return false;
+	}
+
 	var hitbox=this.getHitbox();
 	if(hitbox.contains(mouseX,mouseY)){
 		verts.splice(this.index,0,new Vert(this.x,this.y));
@@ -590,6 +754,9 @@ Midpoint.prototype.click=function(verts){
 Midpoint.prototype.draw=function(){
 	push();
 	fill(0);
+	if(!this.vert.color){
+		fill(palette[8]);
+	}
 	stroke(255);
 	strokeWeight(3);
 	var hitbox=this.getHitbox();
@@ -638,9 +805,9 @@ Poly.prototype.getMidpoints=function(){
 	for(var i=1;i<verts.length;i++){
 		var a=verts[i-1];
 		var b=verts[i];
-		if(a.color){
+		//if(a.color){
 			this.midpoints.push(new Midpoint(a,b,i));
-		}
+		//}
 	}
 }
 
@@ -657,18 +824,73 @@ Poly.prototype.click=function(){
 	var verts=this.verts[gui.vertGroup.selected];
 	for(var i=0;i<verts.length;i++){
 		if(verts[i].click()){
-			return;
+			return true;
 		}
 	}
 	for(var i=0;i<this.midpoints.length;i++){
 		if(this.midpoints[i].click(verts,i+1)){
-			return;
+			return true;
 		}
 	}
-	var cell=gui.canvas.canvasToCell(mouseX,mouseY);
-	// var x=floor(map(mouseX,0,1000,0,127));
-	// var y=floor(map(mouseY,0,1000,0,127));
-	this.addVertex(cell.x,cell.y);
+	// this.deselectVerts();
+	return false;
+}
+
+// Poly.prototype.select=function(vertBox){
+// 	var verts=this.verts[gui.vertGroup.selected];
+// 	// var selection=[];
+// 	for(var i=0;i<verts.length;i++){
+// 		var point=gui.canvas.cellToCanvas(verts[i].x,verts[i].y);
+// 		point.x+=gui.canvas.cellWidth;
+// 		point.y+=gui.canvas.cellHeight;
+// 		if(vertBox.contains(point.x,point.y)){
+// 			selection.push(verts[i]);
+// 			verts[i].selected=true;
+// 		}
+// 	}
+// 	// return selection;
+// }
+
+// Poly.prototype.deselect=function(){
+// 	if(gui.canvas.selected){
+// 		var verts=this.verts[gui.vertGroup.selected];
+// 		for(var i=0;i<verts.length;i++){
+// 			verts[i].selected=false;
+// 		}
+// 		gui.canvas.selected=false;
+// 	}
+// }
+
+Poly.prototype.deselectVerts=function(){
+	var verts=this.verts[gui.vertGroup.selected];
+	for(var i=0;i<verts.length;i++){
+		verts[i].selected=false;
+	}
+}
+
+Poly.prototype.moveVerts=function(vert){
+	var xMin=127;
+	var yMin=127;
+	var xMax=0;
+	var yMax=0;
+	var verts=this.verts[gui.vertGroup.selected];
+	for(var i=0;i<verts.length;i++){
+		if(verts[i].selected){
+			xMin=verts[i].x<xMin?verts[i].x:xMin;
+			yMin=verts[i].y<yMin?verts[i].y:yMin;
+			xMax=verts[i].x>xMax?verts[i].x:xMax;
+			yMax=verts[i].y>yMax?verts[i].y:yMax;
+		}
+	}
+	var point=gui.canvas.canvasToCell(mouseX,mouseY);
+	var dx=constrain(point.x-vert.x,-xMin,127-xMax);
+	var dy=constrain(point.y-vert.y,-yMin,127-yMax);
+	for(var i=0;i<verts.length;i++){
+		if(verts[i].selected){
+			verts[i].x+=dx;
+			verts[i].y+=dy;
+		}
+	}
 }
 
 Poly.prototype.deleteVert=function(){
@@ -826,8 +1048,31 @@ Poly.prototype.unpack=function(string){
 
 Poly.prototype.draw=function(){
 	//var group=this.verts[gui.vertGroup.selected];
+	this.deleteVert();
+	if(gui.vertClick){
+		var hitbox=gui.vertClick.getHitbox();
+		if(!hitbox.contains(mouseX,mouseY)){
+			gui.vertDrag=gui.vertClick;
+			gui.vertClick=false;
+		}
+	}
+	if(gui.midpointClick){
+		var midpoint=gui.midpointClick;
+		var hitbox=midpoint.getHitbox();
+		if(!hitbox.contains(mouseX,mouseY)){
+			var verts=this.verts[gui.vertGroup.selected];
+			var vert=new Vert(midpoint.x,midpoint.y,false,midpoint.vert.color);
+			verts.splice(midpoint.index,0,vert);
+			gui.midpointClick=false;
+			gui.vertDrag=vert;
+		}
+	}
 	if(gui.vertDrag){
-		gui.vertDrag.move(mouseX,mouseY);
+		if(gui.vertDrag.selected){
+			this.moveVerts(gui.vertDrag);
+		}else{
+			gui.vertDrag.move(mouseX,mouseY);
+		}
 	}
 	var count=this.countVertGroups();
 	if(count>0){
@@ -845,7 +1090,7 @@ Poly.prototype.draw=function(){
 		// noSmooth();
 		// image(this.canvas,gui.canvas.x,gui.canvas.y,gui.canvas.width,gui.canvas.height);
 		verts=this.verts[gui.vertGroup.selected];
-		if(this.fillColor<16){
+		if(gui.showEdges){
 			for(var i=1;i<verts.length;i++){
 				var a=verts[i-1];
 				var b=verts[i];
@@ -985,13 +1230,19 @@ function subdivide(a,b,splitColor){
   return result;
 }
 
-// function magnitude(x1, y1, x2, y2) {
-// 	var dx = x2 - x1;
-// 	var dy = y2 - y1;
-// 	return sqrt(dx * dx + dy * dy);
-// }
+function magnitude(x1, y1, x2, y2) {
+	var dx = x2 - x1;
+	var dy = y2 - y1;
+	return sqrt(dx * dx + dy * dy);
+}
 
 function keyPressed(){
+	if(key===' '){
+		gui.showEdges=!gui.showEdges;
+	}
+	if(key==='D'){
+		polys[gui.layer.selected].deselect();
+	}
 	if(keyCode===ENTER){
 		unpack(unpackInput.value());
 		unpackInput.value('');
