@@ -5,35 +5,48 @@
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 
-	<title>VectorEditor2</title>
+	<title>Vector Editor for PICO-8</title>
+
+	<link rel="stylesheet" href="styles.css">
 
 	<script src="libraries/p5.js"></script>
 	<script src="libraries/p5.dom.js"></script>
 	<script src="libraries/p5.sound.js"></script>
 	<script src="sketch.js"></script>
-
-	<style>
-		body {
-			margin:0;
-			padding:0;
-			overflow: hidden;
-		}
-		canvas {
-			margin:auto;
-		}
-	</style>
 </head>
 <body>
-	<div id="p5Canvas">
-
+	<div class="grid-container">
+	  <div class="canvas" id="item1">
+			<div id="p5Canvas"></div>
+	  </div>
+	  <div class="grid-item" id="item2">
+			<p>Copy to save: <input type="text" id="packInput"></p>
+			<p>Paste to load: <input type="text" id="unpackInput"></p>
+			<input type="button" id="loadButton" value="Load">
+			<p id="stringLength"></p>
+	  </div>
+	  <div class="grid-item" id="item3">
+			<ul>
+				<li>Drag an image onto the canvas to use as a reference.</li>
+				<li>Shift-click on the canvas to place a vertex.</li>
+				<li>Click and drag a vertex to move it.</li>
+				<li>Click and drag a midpoint to add a vertex there.</li>
+				<li>Polygons are smoothed by default. Click a vertex to pin/unpin it.</li>
+				<li>Click a midpoint to toggle the edge color.</li>
+				<li>Click and drag on the canvas to select multiple vertices.</li>
+				<li>Hold Shift and drag a selection box to add vertices to the selection.</li>
+				<li>Hold Alt and drag to remove vertices from the selection.</li>
+				<li>Hold Z and drag to delete vertices.</li>
+				<li>Press A to select all current vertices.</li>
+				<li>Press S to deselect all current vertices.</li>
+				<li>Press Q to show/hide edges.</li>
+				<li>Press W to toggle transparency.</li>
+				<li>Colors (below canvas) - Top row is fill color. Far right is no fill. Bottom row is line color.</li>
+				<li>Layers (right of canvas) - Layers are drawn from top to bottom. Drag to rearrange, drag to bottom to delete.</li>
+				<li>Polygons (right of layers) - Polygons on a layer have the same fill and line color. They also affect each other. For example, to create a hole in a shape, draw another shape inside on the same layer.</li>
+				<li>Save/Load - Copy the top text box for the current drawing. Paste into the bottom text box and click "Load" to load a drawing.</li>
+			</ul>
+		</div>
 	</div>
-	<div>
-		<!--
-		<input type="file" id="profile_pic" name="profile_pic" accept=".jpg, .jpeg, .png">
-		-->
-		<p id="stringLength"></p>
-		<p>Copy to save: <input type="text" id="packInput"></p>
-		<p>Paste to load: <input type="text" id="unpackInput"></p>
-  </div>
 </body>
 </html>

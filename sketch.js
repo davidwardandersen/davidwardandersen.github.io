@@ -28,7 +28,7 @@ let transparencyKey=87;
 //let dragging=false;
 
 function setup() {
-	let size=min([windowWidth,windowHeight,1000]);
+	let size=min([windowWidth*0.7,windowHeight*0.9,1000]);
 	let myCanvas=createCanvas(size,size);
 	myCanvas.parent("p5Canvas");
 	myCanvas.drop(gotFile);
@@ -60,7 +60,7 @@ function gotFile(file){
 //  "Y8888P88  "Y88888P"  8888888
 
 function setupGui(){
-	gui.block=min(width/22,height/22);
+	gui.block=min(width/21,height/21);
 	gui.canvas=new GuiCanvas(1,1,17,17,128,128,gui.block);
 	gui.tool=new GuiTool(1,0,17,1,17,1,gui.block);
 	gui.fill=new GuiColor(1,18,17,1,17,1,gui.block);
@@ -88,6 +88,8 @@ function setupGui(){
 	// unpackInput.position(gui.block*7,gui.block*21+gui.block*0.25);
 	// unpackInput.size(gui.block*10,gui.block*0.5);
 	stringLength=select('#stringLength');
+	loadButton=select('#loadButton');
+	loadButton.mousePressed(loadDrawing);
 
 	gui.click=function(){
 		// if(gui.vertMenu){
@@ -177,7 +179,7 @@ function setupGui(){
 }
 
 function windowResized(){
-	let size=min([windowWidth,windowHeight,1000]);
+	let size=min([windowWidth*0.7,windowHeight*0.9,1000]);
 	resizeCanvas(size,size);
 	gui.resize();
 }
@@ -1316,7 +1318,8 @@ function pack(){
 }
 
 function unpack(string){
-	if(string.match(/[^0123456789abcdefgpx]/)){
+	string=string.toLowerCase();
+	if(string.match(/[^0-9a-fgpx]/)){
 		return 'Invalid string';
 	}else{
 		for(let i=0;i<16;i++){
@@ -1432,10 +1435,11 @@ function keyPressed(){
 	if(keyCode===deselectAllKey){
 		polys[gui.layer.selected].deselectVerts();
 	}
-	if(keyCode===ENTER){
-		unpack(unpackInput.value());
-		unpackInput.value('');
-	}
+}
+
+function loadDrawing() {
+	unpackInput.value(unpack(unpackInput.value()));
+	//unpackInput.value('');
 }
 
 function mousePressed() {
